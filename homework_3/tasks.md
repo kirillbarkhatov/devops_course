@@ -1,28 +1,5 @@
 # Домашнее задание №3
 
-## 1. Отразить 7 последних строк из: `wtmp` `last`
-```sh
-[root@slonit ~]# last -n 7
-root     pts/0        77.91.70.162     Fri Nov 22 23:20   still logged in
-root     pts/0        77.91.70.162     Fri Nov 15 13:43 - 16:38  (02:55)
-reboot   system boot  5.4.17-2136.310. Fri Nov 15 13:39   still running
-root     pts/0        77.91.70.162     Fri Nov 15 13:10 - 13:39  (00:28)
-reboot   system boot  5.4.17-2136.310. Fri Nov 15 13:10 - 13:39  (00:28)
-root     pts/0        77.91.70.162     Fri Nov 15 13:03 - 13:07  (00:04)
-reboot   system boot  5.4.17-2136.310. Fri Nov 15 13:02 - 13:07  (00:04)
-```
-
-```sh
-[root@slonit ~]# last -f /var/log/wtmp -n 7
-root     pts/0        77.91.70.162     Fri Nov 22 23:20   still logged in
-root     pts/0        77.91.70.162     Fri Nov 15 13:43 - 16:38  (02:55)
-reboot   system boot  5.4.17-2136.310. Fri Nov 15 13:39   still running
-root     pts/0        77.91.70.162     Fri Nov 15 13:10 - 13:39  (00:28)
-reboot   system boot  5.4.17-2136.310. Fri Nov 15 13:10 - 13:39  (00:28)
-root     pts/0        77.91.70.162     Fri Nov 15 13:03 - 13:07  (00:04)
-reboot   system boot  5.4.17-2136.310. Fri Nov 15 13:02 - 13:07  (00:04)
-```
-
 ## 1. Написать скрипт, который будет спрашивать имя пользователя и на основе ввода показывать нужную строчку из `/etc/passwd`.
 Так же скрипт выводит построчно:
 - шелл пользователя
@@ -234,6 +211,92 @@ fi
 
 ## 4. Создайте файл со списком пользователей. С помощью `for` выведите на экран содержимое файла с нумерацией строк
 
+Скрипт
+```
+#!/bin/bash
+
+# Проверяем, существует ли файл users_list.txt
+if [ ! -f "users_list.txt" ]; then
+    echo "Файл users_list.txt не найден!"
+    exit 1
+fi
+
+# Используем цикл for для вывода содержимого с нумерацией
+i=1
+for line in $(cat users_list.txt); do
+    echo "$i: $line"
+    ((i++))
+done
+```
+
+Задание
+```
+[root@slonit hw_3]# cat /etc/passwd > users_list.txt
+[root@slonit hw_3]# nano users_list.sh
+[root@slonit hw_3]# chmod +x users_list.sh
+[root@slonit hw_3]# ./users_list.sh
+1: root:x:0:0:root:/root:/bin/bash
+2: bin:x:1:1:bin:/bin:/sbin/nologin
+3: daemon:x:2:2:daemon:/sbin:/sbin/nologin
+4: adm:x:3:4:adm:/var/adm:/sbin/nologin
+5: lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+6: sync:x:5:0:sync:/sbin:/bin/sync
+7: shutdown:x:6:0:shutdown:/sbin:/sbin/shutdown
+8: halt:x:7:0:halt:/sbin:/sbin/halt
+9: mail:x:8:12:mail:/var/spool/mail:/sbin/nologin
+10: operator:x:11:0:operator:/root:/sbin/nologin
+11: games:x:12:100:games:/usr/games:/sbin/nologin
+12: ftp:x:14:50:FTP
+13: User:/var/ftp:/sbin/nologin
+14: nobody:x:65534:65534:Kernel
+15: Overflow
+16: User:/:/sbin/nologin
+17: dbus:x:81:81:System
+18: message
+19: bus:/:/sbin/nologin
+20: systemd-coredump:x:999:997:systemd
+21: Core
+22: Dumper:/:/sbin/nologin
+23: systemd-resolve:x:193:193:systemd
+24: Resolver:/:/sbin/nologin
+25: tss:x:59:59:Account
+26: used
+27: for
+28: TPM
+29: access:/dev/null:/sbin/nologin
+30: polkitd:x:998:996:User
+31: for
+32: polkitd:/:/sbin/nologin
+33: clevis:x:997:993:Clevis
+34: Decryption
+35: Framework
+36: unprivileged
+37: user:/var/cache/clevis:/sbin/nologin
+38: unbound:x:996:992:Unbound
+39: DNS
+40: resolver:/etc/unbound:/sbin/nologin
+41: libstoragemgmt:x:995:991:daemon
+42: account
+43: for
+44: libstoragemgmt:/var/run/lsm:/sbin/nologin
+45: setroubleshoot:x:994:990::/var/lib/setroubleshoot:/sbin/nologin
+46: cockpit-ws:x:993:989:User
+47: for
+48: cockpit
+49: web
+50: service:/nonexisting:/sbin/nologin
+51: cockpit-wsinstance:x:992:988:User
+52: for
+53: cockpit-ws
+54: instances:/nonexisting:/sbin/nologin
+55: sssd:x:991:987:User
+56: for
+57: sssd:/:/sbin/nologin
+58: chrony:x:990:986::/var/lib/chrony:/sbin/nologin
+59: sshd:x:74:74:Privilege-separated
+60: SSH:/var/empty/sshd:/sbin/nologin
+61: tcpdump:x:72:72::/:/sbin/nologin
+```
 
 
 ## 5. При помощи `HEREDOC` "сгенерировать" баш-скрипт, который на вход принимает три аргумента:
