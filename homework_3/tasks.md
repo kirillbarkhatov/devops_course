@@ -457,8 +457,8 @@ echo "Скрипт generated_script.sh успешно сгенерирован!"
 #!/bin/bash
 
 # Токен и чат ID для Telegram
-TOKEN="1436752844:AAHpTWM_yGsUmHFf3zA5JzlX47ectU6qU10"
-CHAT_ID="701350489"
+TOKEN="ВАШ_ТОКЕН"
+CHAT_ID="ВАШ_ЧАТ_С_БОТОМ"
 
 # Вывод помощи
 usage() {
