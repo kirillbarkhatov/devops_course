@@ -34,7 +34,79 @@ reboot   system boot  5.4.17-2136.310. Fri Nov 15 13:02 - 13:07  (00:04)
 Если группу – то следует спросить, меняем ли мы основную группу или дополнительную.
 После чего следует вывести на экран итоговую команду.
 
+```
+#!/bin/bash
 
+# Запрос имени пользователя
+read -p "Введите имя пользователя: " username
+
+# Получаем строку из /etc/passwd для указанного пользователя
+user_info=$(grep "^$username:" /etc/passwd)
+
+if [ -z "$user_info" ]; then
+    echo "Пользователь $username не найден."
+    exit 1
+fi
+
+# Разбираем строку /etc/passwd
+IFS=":" read -r user_name password uid gid full_name home_dir shell <<< "$user_info"
+
+# Выводим информацию о пользователе
+echo "Информация о пользователе $username:"
+echo "Шелл: $shell"
+echo "Домашняя директория: $home_dir"
+echo "Список групп: $(id -Gn $username)"
+
+# Запрос на изменение данных
+read -p "Что хотите изменить? (uid, home_dir, group): " change_option
+
+case "$change_option" in
+  "uid")
+    # Проверка, доступен ли новый uid
+    while true; do
+      read -p "Введите новый UID: " new_uid
+      if ! getent passwd "$new_uid" > /dev/null; then
+        echo "UID $new_uid доступен."
+        break
+      else
+	echo "UID $new_uid уже занят, попробуйте снова."
+      fi
+    done
+    # Вывод итоговой команды
+    echo "Команда для изменения UID: sudo usermod -u $new_uid $username"
+    ;;
+
+  "home_dir")
+    read -p "Введите новую домашнюю директорию: " new_home
+    read -p "Перемещать ли содержимое старой домашней директории в новую? (y/n): " move_dir
+
+    # Вывод итоговой команды
+    if [ "$move_dir" == "y" ]; then
+      echo "Команда для изменения домашней директории и перемещения данных: sudo usermod -d $new_home -m $username"
+    else
+      echo "Команда для изменения только домашней директории: sudo usermod -d $new_home $username"
+    fi
+    ;;
+
+  "group")
+    read -p "Меняем ли основную группу? (y/n): " change_primary_group
+    if [ "$change_primary_group" == "y" ]; then
+      read -p "Введите новую основную группу: " new_group
+      # Вывод итоговой команды
+      echo "Команда для изменения основной группы: sudo usermod -g $new_group $username"
+    else
+      read -p "Введите дополнительную группу для добавления: " new_group
+      # Вывод итоговой команды
+      echo "Команда для добавления пользователя в новую группу: sudo usermod -aG $new_group $username"
+    fi
+    ;;
+
+  *)
+    echo "Некорректный выбор. Выберите uid, домашнюю директорию или группу."
+    ;;
+esac
+
+```
 
 ## 2. Написать скрипт, который будет спрашивать название и создавать файл, затем спрашивать права для этого файла и задавать их.
 
