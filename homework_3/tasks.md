@@ -452,7 +452,100 @@ echo "Скрипт generated_script.sh успешно сгенерирован!"
 2. * поместить задание в крон не используя утилиту crontab с параметром `-e`
 3. **Заменить вызов cron на `systemd-timers`
 
+Скрипт
+```
+#!/bin/bash
 
+# Токен и чат ID для Telegram
+TOKEN="1436752844:AAHpTWM_yGsUmHFf3zA5JzlX47ectU6qU10"
+CHAT_ID="701350489"
+
+# Вывод помощи
+usage() {
+    echo "Usage: $0 <threshold_percentage>"
+    echo "Threshold percentage is the minimum percentage of free space before warning."
+    exit 1
+}
+
+# Проверка аргумента
+if [ -z "$1" ]; then
+    usage
+fi
+
+# Порог свободного пространства
+THRESHOLD=$1
+
+# Функция отправки сообщения в Telegram
+send_telegram_message() {
+  local message="$1"
+  curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
+       -d chat_id="$CHAT_ID" \
+       -d text="$message"
+}
+
+# Функция, которая проверяет свободное пространство на всех примонтированных дисках
+check_disk_space() {
+  df -h | awk -v threshold="$THRESHOLD" '
+    $5 ~ /%/ {  # Проверяем, что процент использованного места в формате процентов
+      used_percentage = substr($5, 1, length($5)-1)  # Извлекаем число из строки, например, 12 из 12%
+      free_percentage = 100 - used_percentage  # Вычисляем процент свободного места
+      if (free_percentage < threshold) {  # Если свободного места меньше порога
+        print "Warning: " $1 " mounted at " $6 " has less than " threshold "% free space!" 
+        print "Current free space: " $4 " (" used_percentage "% used)"
+      }
+    }
+  '
+}
+
+# Проверяем диски и отправляем сообщение, если нужно
+warning_message=$(check_disk_space)
+if [ ! -z "$warning_message" ]; then
+  send_telegram_message "$warning_message"
+fi
+```
+
+крон
+`sudo nano /etc/cron.d/check_disk_space.cron`
+```
+*/8 * * * * root /root/hw_3/check_disk.sh 95
+```
+
+Сервис
+`sudo nano /etc/systemd/system/check-disk-space.service`
+```
+[Unit]
+Description=Check disk space and send Telegram notification
+
+[Service]
+ExecStart=/root/hw_3/check_disk.sh 95
+Type=oneshot
+```
+
+Таймер
+`sudo nano /etc/systemd/system/check-disk-space.timer`
+```
+[Unit]
+Description=Run disk space check every 8 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=8min
+
+[Install]
+WantedBy=timers.target
+```
+
+Запуск
+```
+sudo systemctl daemon-reload
+sudo systemctl enable check-disk-space.timer
+sudo systemctl start check-disk-space.timer
+```
+
+Проверка таймера
+```
+sudo systemctl status check-disk-space.timer
+```
 
 ## 7. Написать скрипт, который принимает на вход в виде аргумента IP-адрес
 Скрипт должен проверить доступность адреса посредством ping три раза и записать в лог один раз за все три проверки:
