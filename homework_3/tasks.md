@@ -507,7 +507,7 @@ fi
 крон
 `sudo nano /etc/cron.d/check_disk_space.cron`
 ```
-*/8 * * * * root /root/hw_3/check_disk.sh 95
+*/8 * * * * root /root/hw_3/check_disks.sh 95
 ```
 
 Сервис
@@ -517,7 +517,7 @@ fi
 Description=Check disk space and send Telegram notification
 
 [Service]
-ExecStart=/root/hw_3/check_disk.sh 95
+ExecStart=/root/hw_3/check_disks.sh 95
 Type=oneshot
 ```
 
