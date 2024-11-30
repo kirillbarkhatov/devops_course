@@ -5,10 +5,15 @@
 - шелл пользователя
 - домашнюю директорию пользователя
 - список групп, в которых он состоит
+  
 После этого скрипт должен спросить, что следует поменять – uid, домашнюю директорию или группу
+
 Если uid, то сначала проверить, доступен ли такой uid, если нет – то один раз предложить ввести заново.
+
 Если домашнюю директорию, то спросить, на какую директорию следует сменить, а также следует ли перемещать домашнюю директорию.
+
 Если группу – то следует спросить, меняем ли мы основную группу или дополнительную.
+
 После чего следует вывести на экран итоговую команду.
 
 ```
@@ -165,6 +170,7 @@ ls -l "$filename" | awk '{print $1}'
 
 ## 3. Написать скрипт, который должен принять на вход путь до блочного устройства, проверить примонтировано оно или нет.
 Если примонтировано - завершиться с `exitCode 90`
+
 Если не примонтировано, то при помощи программы mktemp создать директорию, примонтировать в неё
 
 ```
@@ -303,17 +309,137 @@ done
 - вывод `usage` ( как пользоваться скриптом )
 - количество генерируемых файлов
 - маску имени генерируемых файлов
+  
 и реализует такую штуку:
+
 Проверяет существование файла с именем скрипта и расширением `lock`
-если файл существует, вывести содержимое файла и завершить работу с кодом `64`
-если файла не существует, то записать в него pid скрипта
+- если файл существует, вывести содержимое файла и завершить работу с кодом `64`
+- если файла не существует, то записать в него pid скрипта
+  
 Перейти в домашнюю директорию пользователя root
+
 Создать именованный пайп
+
 Создать файлы различного размера ( от 10 КБ до 800 КБ ) по маске имени, количество взять из аргумента "количество генерируемых файлов"
+
 Перейти в директорию `/tmp`
+
 Заархивировать созданные файлы при помощи созданного именованного пайпа
+
 Вывести список файлов ( без директорий ) одновременно и на экран, и в файл
+
 Вывести на экран время всей работы скрипта в формате `unixtime`
+
+```
+#!/bin/bash
+
+# Генерация скрипта при помощи HEREDOC
+cat <<'EOF' > generated_script.sh
+#!/bin/bash
+
+# Проверяем, если переданы все необходимые аргументы
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <usage> <number_of_files> <file_name_pattern>"
+    exit 1
+fi
+
+# Аргументы
+usage="$1"
+number_of_files="$2"
+file_name_pattern="$3"
+
+# Проверяем, что количество файлов - это положительное целое число
+if ! [[ "$number_of_files" =~ ^[0-9]+$ ]] || [ "$number_of_files" -le 0 ]; then
+    echo "Error: number_of_files must be a positive integer."
+    exit 1
+fi
+
+# Выводим usage
+echo "$usage"
+
+# Проверка существования lock файла
+script_name=$(basename "$0")
+lock_file="/tmp/${script_name}.lock"
+if [ -f "$lock_file" ]; then
+    # Если файл существует, выводим содержимое и выходим с кодом 64
+    echo "Lock file exists. Content:"
+    cat "$lock_file"
+    exit 64
+else
+    # Если файла нет, записываем pid в lock файл
+    echo $$ > "$lock_file"
+fi
+
+# Переходим в домашнюю директорию пользователя root
+home_dir="/root"
+if [ "$EUID" -ne 0 ]; then
+    echo "Warning: Not running as root. Switching to current user's home directory."
+    home_dir="$HOME"
+fi
+
+cd "$home_dir" || { echo "Failed to change directory to $home_dir"; rm "$lock_file"; exit 1; }
+
+# Создаем уникальное имя для пайпа с использованием PID
+pipe_name="/tmp/mypipe_$$"  # $$ — это текущий PID
+
+# Проверка и удаление существующего пайпа с уникальным именем
+if [[ -p "$pipe_name" ]]; then
+    echo "Named pipe $pipe_name already exists, removing it."
+    rm "$pipe_name" || { echo "Failed to remove existing named pipe"; rm "$lock_file"; exit 1; }
+fi
+
+# Создаем именованный пайп
+if [[ ! -p "$pipe_name" ]]; then
+    mkfifo "$pipe_name" || { echo "Failed to create named pipe"; rm "$lock_file"; exit 1; }
+    echo "Named pipe $pipe_name created."
+fi
+
+# Создаем файлы случайного размера от 10KB до 800KB
+for ((i = 1; i <= number_of_files; i++)); do
+    file_name=$(printf "$file_name_pattern" "$i")
+    echo "Creating file: $home_dir/$file_name"
+    size=$(( (RANDOM % 791) + 10 )) # Генерация случайного размера от 10 до 800 КБ
+    dd if=/dev/urandom of="$file_name" bs=1K count=$size status=none
+done
+
+# Переходим в директорию /tmp
+cd /tmp || { echo "Failed to change directory to /tmp"; rm "$lock_file"; exit 1; }
+
+# Заархивируем созданные файлы через пайп
+(
+    cd "$home_dir"
+    tar -cvf "$pipe_name" $(for ((i = 1; i <= number_of_files; i++)); do printf "$file_name_pattern " "$i"; done) &
+) || { echo "Failed to archive files"; rm "$lock_file"; exit 1; }
+tar_pid=$!
+
+# Чтение из пайпа в файл
+cat "$pipe_name" > archive.tar
+wait $tar_pid
+
+# Выводим список файлов на экран и в файл
+ls -p | grep -v / > file_list.txt
+cat file_list.txt
+
+# Выводим время работы скрипта в формате unixtime
+echo "Unix time: $(date +%s)"
+
+# Удаляем lock файл после завершения работы
+if [ -f "$lock_file" ]; then
+    rm "$lock_file"
+fi
+
+# Удаляем пайп
+if [[ -p "$pipe_name" ]]; then
+    rm "$pipe_name"
+fi
+
+EOF
+
+# Делаем сгенерированный скрипт исполняемым
+chmod +x generated_script.sh
+
+echo "Скрипт generated_script.sh успешно сгенерирован!"
+```
 
 
 
