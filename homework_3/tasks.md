@@ -553,6 +553,43 @@ sudo systemctl status check-disk-space.timer
 - трассировку до хоста
 - с какого роутера получен маршрут
 
+```
+#!/bin/bash
+
+# Проверка, что IP передан в аргументе
+if [ -z "$1" ]; then
+    echo "Использование: $0 <IP-адрес>"
+    exit 1
+fi
+
+IP=$1
+LOG_FILE="host_check.log"
+
+# Проверка доступности хоста с помощью ping (3 пакета)
+ping -c 3 $IP > /dev/null 2>&1
+
+if [ $? -eq 0 ]; then
+    echo "$(date) - Хост $IP доступен." >> $LOG_FILE
+else
+    echo "$(date) - Хост $IP недоступен." >> $LOG_FILE
+    exit 1
+fi
+
+# Выполнение трассировки маршрута
+TRACE_RESULT=$(traceroute $IP 2>&1)
+
+echo "$(date) - Результат трассировки до хоста $IP:" >> $LOG_FILE
+echo "$TRACE_RESULT" >> $LOG_FILE
+
+# Определение первого роутера из трассировки
+FIRST_ROUTER=$(echo "$TRACE_RESULT" | grep -m 1 " *1" | awk '{print $2}')
+
+if [ -n "$FIRST_ROUTER" ]; then
+    echo "$(date) - Маршрут проходит через роутер с IP: $FIRST_ROUTER" >> $LOG_FILE
+else
+    echo "$(date) - Не удалось определить первый роутер в трассировке." >> $LOG_FILE
+fi
+```
 
 
 ## 8. Собрать `nginx` из исходников с модулем `https://github.com/ritchie-wang/nginx-upstream-dynamic-servers`
